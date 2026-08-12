@@ -248,9 +248,9 @@ window.addEventListener('unhandledrejection', (e) => {
   const NODES = NODES_VIS_RAW.map((n, i) => {
     // 节点尺寸：按 degree 三档
     let size;
-    if (n.kind === 'hub')        size = 5.5 + Math.min(3, n.degree / 30);
-    else if (n.kind === 'mid')   size = 2.8 + Math.random() * 1.2;
-    else                          size = 1.4 + Math.random() * 0.8;
+    if (n.kind === 'hub')        size = 8.0 + Math.min(4, n.degree / 25);
+    else if (n.kind === 'mid')   size = 3.5 + Math.random() * 1.5;
+    else                          size = 2.0 + Math.random() * 1.2;
 
     // 初始位置：按颜色分 3 个聚类 + 一定随机
     const color = n.color;
@@ -293,9 +293,9 @@ window.addEventListener('unhandledrejection', (e) => {
 
   /* ---------- 力导向仿真 ---------- */
   const sim = {
-    centerForce: 0.006,    // 中心引力稍降，让外围大点能散开
-    repulsion: 3000,        // 排斥力翻倍多（1400→3000），让拥挤的 hub 互相推开
-    linkDistance: 70,       // 弹簧自然长度 50→70，节点间默认距离更大
+    centerForce: 0.005,    // 中心引力稍降，让外围大点能散开
+    repulsion: 3500,        // 排斥力更强（1400→3000→3500），配合节点放大保持秩序
+    linkDistance: 85,       // 弹簧自然长度 70→85，节点更大需要更大间距
     linkStiffness: 0.04,
     damping: 0.86,
     maxV: 10,
@@ -413,15 +413,15 @@ window.addEventListener('unhandledrejection', (e) => {
     const dim = focusedSet && !focusedSet.has(a) && !focusedSet.has(b);
     // 边粗细：随两端节点大小动态算（小节点连细线，hub-hub 稍粗）
     const aSz = a.size, bSz = b.size;
-    const baseWidth = Math.max(0.5, (aSz + bSz) * 0.15);
+    const baseWidth = Math.max(0.7, (aSz + bSz) * 0.20);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.quadraticCurveTo(mx + offX, my + offY, b.x, b.y);
     if (dim) {
-      ctx.strokeStyle = 'rgba(80, 85, 95, 0.10)';
-      ctx.lineWidth = baseWidth * 0.6;
+      ctx.strokeStyle = 'rgba(80, 85, 95, 0.18)';
+      ctx.lineWidth = baseWidth * 0.7;
     } else {
-      ctx.strokeStyle = 'rgba(190, 200, 230, 0.20)';
+      ctx.strokeStyle = 'rgba(190, 200, 230, 0.32)';
       ctx.lineWidth = baseWidth;
     }
     ctx.stroke();
@@ -431,7 +431,7 @@ window.addEventListener('unhandledrejection', (e) => {
     const dim = focusedSet && !focusedSet.has(n);
     const pulse = 0.85 + Math.sin(n.pulse + performance.now() * 0.0012) * 0.15;
     // 光晕半径收一些，避免吞噬核心光点
-    const radius = n.size * (dim ? 2.2 : 3.0) * pulse;
+    const radius = n.size * (dim ? 1.8 : 2.2) * pulse;
     const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, radius);
     if (dim) {
       grad.addColorStop(0, c.glow + '30');
