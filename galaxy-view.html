@@ -372,7 +372,7 @@ window.addEventListener('unhandledrejection', (e) => {
   const view = { x: 0, y: 0, k: 1, rot: 0, target: { x: 0, y: 0, k: 1 } };
   // 轨道漂移：缓慢自转（用户交互时停掉，3 秒后恢复）
   let drift = 0;           // 当前累计旋转角（弧度）
-  let driftSpeed = 0;       // 临时禁用：driftSpeed = 0.00008;  // 0.27°/秒
+  let driftSpeed = 0.00006; // 弧度/帧 ≈ 0.0034°/帧 ≈ 0.2°/秒（更慢更稳）
   let driftPaused = false;
   let driftResumeAt = 0;   // 时间戳，到点恢复
   function applyView() {
@@ -384,21 +384,42 @@ window.addEventListener('unhandledrejection', (e) => {
     if (driftPaused && now > driftResumeAt) driftPaused = false;
     if (!driftPaused) drift += driftSpeed;
     view.rot = drift;
-    // 临时禁用旋转：直接缩放 + 平移（绕开 dpr/旋转矩阵的复杂性，等基础交互稳了再加回）
+    // 变换 = T(cx,cy) * R(rot) * S(k*dpr) * T(view.x*dpr, view.y*dpr)
+    // 先把世界 (x,y) 平移到 (x+tx, y+ty)，再缩放 k，再绕原点旋转 rot，最后平移到屏幕中心
     const k = view.k * dpr;
-    ctx.setTransform(k, 0, 0, k, view.x * dpr, view.y * dpr);
+    const cos = Math.cos(view.rot), sin = Math.sin(view.rot);
+    const cx = W * 0.5 * dpr, cy = H * 0.5 * dpr;
+    const tx = view.x * dpr, ty = view.y * dpr;
+    // 矩阵 [a c e; b d f; 0 0 1]
+    ctx.setTransform(
+      k * cos,  k * sin,        // a, b
+      -k * sin, k * cos,        // c, d
+      cx + tx * k * cos - ty * k * sin,    // e
+      cy + tx * k * sin + ty * k * cos     // f
+    );
   }
   function pauseDrift() {
     driftPaused = true;
     driftResumeAt = performance.now() + 3000;  // 3 秒后恢复
   }
   function screenToWorld(sx, sy) {
-    // 简化：先把 CSS 像素 × dpr 转设备像素，再除 k 缩放，减 view.x/y（也是设备像素）
-    const dpr = window.devicePixelRatio || 1;
-    return [
-      (sx * dpr - view.x * dpr) / (view.k * dpr),
-      (sy * dpr - view.y * dpr) / (view.k * dpr)
-    ];
+    // 屏幕 (CSS px) → dpr 化设备像素 → 减 cx,cy → 逆旋转 R(-rot) → 除 k → 减 tx,ty → 世界坐标
+    // R(-rot) 矩阵: [cos, sin; -sin, cos]
+    const k = view.k * dpr;
+    const cos = Math.cos(view.rot), sin = Math.sin(view.rot);
+    const cx = W * 0.5 * dpr, cy = H * 0.5 * dpr;
+    const tx = view.x * dpr, ty = view.y * dpr;
+    // 把 sx,sy 转 dpr
+    const dx = sx * dpr - cx;
+    const dy = sy * dpr - cy;
+    // 逆旋转 R(-rot) = [cos, sin; -sin, cos]
+    const ux = dx * cos + dy * sin;
+    const uy = -dx * sin + dy * cos;
+    // 除 k
+    const vx = ux / k;
+    const vy = uy / k;
+    // 减 (tx, ty)
+    return [vx - tx, vy - ty];
   }
 
   // 高亮状态
